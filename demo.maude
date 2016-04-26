@@ -1,4 +1,4 @@
-fmod JOY_REQS is
+fmod WF_REQS is
   protecting QID .
   protecting BOOL .
   protecting INT .
@@ -7,8 +7,8 @@ fmod JOY_REQS is
   subsorts Qid < Op .
 endfm
 
-mod JOY is
-  including JOY_REQS .
+mod WF is
+  including WF_REQS .
 
   op empty : -> Op [ctor] .
   op _ _ : Op Op -> Op [ctor assoc id: empty] .
@@ -145,9 +145,9 @@ mod JOY is
 endm
 
 
-mod JOY_INLINE is
+mod WF_INLINE is
 
-  including JOY .
+  including WF .
 
   sort Def .
 
@@ -177,9 +177,9 @@ mod JOY_INLINE is
 endm
 
 
-mod JOY_MIX is
-  including JOY .
-  including JOY_INLINE .
+mod WF_MIX is
+  including WF .
+  including WF_INLINE .
 
   vars P PX PY : Op .
   vars QF : Qid .
