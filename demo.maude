@@ -1,0 +1,237 @@
+fmod JOY_REQS is
+  protecting QID .
+  protecting BOOL .
+  protecting INT .
+  sort Env Op Literal Asserts .
+  subsorts Literal < Op .
+  subsorts Qid < Op .
+endfm
+
+mod JOY is
+  including JOY_REQS .
+
+  op empty : -> Op [ctor] .
+  op _ _ : Op Op -> Op [ctor assoc id: empty] .
+  op [ ] : -> Literal [ctor] .
+  op [ _ ] : Op -> Literal [ctor format(ni++ d d --)] .
+
+  op <_> : Int -> Literal [ctor] .
+  op <_> : Bool -> Literal [ctor] .
+  op <_> : String -> Literal [ctor] .
+
+  vars P PX PY PZ : Op .
+  vars A AX AY : Asserts .
+  vars NX NY : Int .
+  vars BX : Bool .
+  vars QF QD QX QY : Qid .
+  vars L LX LY : Literal .
+
+  op noAsserts : -> Asserts [ctor] .
+  op _ _ : Asserts Asserts -> Asserts [ctor assoc comm id: noAsserts] .
+  op { _ } : Op -> Asserts [ctor] .
+  op < _ > : Asserts -> Op [ctor] .
+  eq AX AX = AX .
+
+  eq < { P }      A > [ P ] [ PX ] [ PY ] 'ifte = < A > [ PX ] .
+  eq < { P 'not } A > [ P ] [ PX ] [ PY ] 'ifte = < A > [ PX ] .
+  eq < noAsserts > P = P .
+  eq { empty } = noAsserts .
+  eq < { PX } > < { PY } > = < { PX } { PY } > .
+  eq < { QF P } AX > QF = < AX > QF < { P } > .
+
+  rl [unroll-iter-1] : [P] 'iter => P [ 'isempty ] ['x] [[P] 'nop 'iter 'concat] 'ifte .
+  eq [reduce-hd] : [ P ] 'reduce 'hd = [ P 'hd [] 'cons ] 'reduce 'pop 'swp 'x .
+  eq [iter-hd] : [ P ] 'iter 'hd = [ P [ 'x 'isempty ] [ ] [ 'x [] ] 'ifte ] 'iter 'pop 'swp 'x .
+
+  rl ( QF [P] [PX] [PY] 'ifte ) => [QF P] [QF PX] [QF PY] 'ifte .
+  eq [literal-ifte] : ( L [P] [PX] [PY] 'ifte ) = [L P] [L PX] [L PY] 'ifte .
+  eq [ifte-then] : ( [ P < true  > ] [PX] [PY] 'ifte ) = PX .
+  eq [ifte-else] : ( [ P < false > ] [PX] [PY] 'ifte ) = PY .
+  eq ( [PX QF] [PY QF] 'ifte ) = ( [PX] [PY] 'ifte QF ) .
+  eq ( [PX L] [PY L] 'ifte ) = ( [PX] [PY] 'ifte L ) .
+
+  eq [] = [ empty ] .
+  eq ( [ empty ] [P] 'iter ) = [] .
+  ceq ( L [P] 'iter ) = L P [P] 'iter 'concat  if L =/= [] .
+  eq ( [ empty ] [P] 'nop 'iter ) = [] .
+  ceq ( L [P] 'nop 'iter ) = L P [P] 'iter 'concat  if L =/= [] .
+  eq ( [ P [empty] ] 'iter ) = P .
+
+  eq ( [ [ PX ] [ PY ] P ] 'cond ) = ( [ PX ] [ PY ] [ [ P ] 'cond ] 'ifte ) .
+  eq ( [ [ P ] ] 'cond ) = ( P ) .
+
+  eq ( LX LY 'pair ) = [ LX LY ] .
+  eq ( 'pair 'x ) = ( 'x 'x ) .
+  eq ( 'pair 'unpair ) = empty .
+  eq ( 'pair 'isempty ) = < false > .
+  eq ( 'rot13 'x ) = ( 'swp 'x 'swp ) .
+  eq ( 'swp L 'cons 'rot13 'isempty ) = ( 'isempty 'swp L 'cons 'rot13 ) .
+  eq ( LX 'swp LY 'cons 'rot13 ) = ( LY 'cons 'swp LX ) .
+  eq ( LX LY L 'rot13 ) = ( L LX LY ) .
+  eq ( L 'cons 'swp 'x ) = ( 'swp 'x L 'cons ) .
+  eq ( 'cons 'x ) = ( 'x 'x ) .
+  eq ( 'cons 'pop ) = ( 'swp ) .
+  eq ( LX 'cons 'swp LY 'cons 'swp ) = ( 'swp LX 'cons 'swp LY 'cons ) .
+  eq ( [ LX LY ] 'unpair ) = LX LY .
+  eq ( [ L P ] 'hd ) = L .
+  eq ( 'cons 'hd ) = 'x .
+  eq ( 'cons 'isempty ) = < false > .
+  eq ( [ empty ] 'isempty ) = < true > .
+  eq ( [ L P ] 'isempty ) = < false > .
+
+  eq ( < NX > < NY > 'after ) = ( < ( NX < NY ) > ) .
+  eq ( < NX > < NY > 'before ) = ( < ( NX > NY ) > ) .
+  eq ( [ L P ] 'pop ) = [ P ] L .
+  eq ( 'sort ) = [ [] 'cons ] 'map [ 'pair [ 'unpair [ 
+        [    'isempty ] [ 'x [] ] 
+        [ 'x 'isempty ] [ 'swp 'x [] ]  
+        [ [ [ 'hd 'swp 'hd 'before ] [ 'swp ] [] ] 'cond 'pop [] 'cons 'rot13 'pair ] 
+    ] 'cond ] 'iter ] 'reduce .
+
+  eq ( [ P ] 'i ) = ( P ) .
+  eq ( < NX > < NY > '* ) = ( < NX * NY > ) .
+  eq ( < NX > < NY > '+ ) = ( < NX + NY > ) .
+  eq ( < NX > < NY > '- ) = ( < NX - NY > ) .
+  eq ( < 0 > '+ ) = empty .
+  eq ( < 1 > '* ) = empty .
+  eq ( < NX > '+ '+ ) = ( '+ < NX > '+ ) .   --- propogate constants towards the end
+  eq ( < NX > '- < NY > '+ ) = < NY - NX > '+ .
+  eq ( < NX > '- '+ ) = ( '+ < NX > '- ) .   --- propogate constants towards the end
+  eq ( [ P < NX > '+ ] 'reduce ) = ( 'dup [ P ] 'reduce 'swp 'len < 1 > '- < NX > '* '+ ) .
+  eq ( 'swp '* ) = ( '* ) .
+  eq ( 'swp '+ ) = ( '+ ) .
+  eq ( L 'dup ) = ( L L ) .
+  eq ( L 'x ) = empty .
+  eq ( LX LY 'swp ) = ( LY LX ) .
+  eq ( 'swp 'swp ) = empty .
+  eq ( 'swp PX 'map 'swp PY 'map ) = ( PY 'map 'swp PX 'map 'swp ) .
+  eq ( [P] 'map LX LY 'chop ) = ( LX LY 'chop [P] 'map ) .
+  eq ( [PX] 'map [PY] 'map ) = ( [PX PY] 'map ) .
+  eq ( [ empty ] [P] 'map ) = [] .
+  eq ( [L] [P] 'map ) = L P [] 'cons .
+  eq ( [ empty ] 'cons [P] 'map ) = P [] 'cons .
+  ceq ( [L PX] [PY] 'map ) = L PY [PX] [PY] 'map 'cons if PX =/= empty .
+  eq ( L [P] 'cons ) = [ L P ] .
+  eq ( L [ empty ] 'cons ) = [ L ] .
+  eq ( [PX] [PY] 'concat ) = [ PX PY ] .
+  eq ( [ empty ] 'cons 'concat ) = 'swp 'cons .
+  eq ( 'concat [P] 'reduce ) = [P] 'reduce 'swp [P] 'reduce 'swp P .
+  eq ( 'concat [P] 'map ) = [P] 'map 'swp [P] 'map 'swp 'concat .
+  eq ( [ L P ] 'len ) = [ P ] 'len < 1 > '+ .
+  eq ( [ empty ] 'len ) = < 0 > .
+  eq ( LX LX '= ) = ( < true > ) .
+  ceq( LX LY '= ) = ( < false > ) if LX =/= LY .
+  eq ( 'cons [ empty ] '= ) = ( < false > ) .
+
+  sort Rg .
+  op splitreduce : Op Op -> Rg .
+  op reducegroup : Int Op Op -> Rg .
+  op _+_ : Rg Rg -> Rg [comm assoc memo] .
+  op [_] : Rg -> Op .
+  eq ( [PX] [P] 'reduce ) = [ splitreduce(PX, P) ] .
+  eq splitreduce( L, P ) = reducegroup(1, L, P) .
+  eq splitreduce( L PX, P ) = reducegroup(1, L, P) + splitreduce( PX, P ) .
+  eq reducegroup(NX, PX, P) + reducegroup(NX, PY, P) = reducegroup(s(NX), PX PY P, P) .
+  eq [ reducegroup(NX, PX, P) ] = PX .
+  eq [ reducegroup(NX, PX, P) + reducegroup(NY, PY, P) ] = PX PY P .
+
+  eq ( [L] [P] 'reduce ) = L .
+  eq ( [ empty ] 'cons [P] 'reduce ) = ( empty ) .
+  eq ( [ empty ] 'map ) = ( empty ) .
+  --- is there a more general thing here?  need it for ['reverse 'reverse]:
+  eq ( [ [ empty ] 'cons] 'map [ 'concat ] 'reduce ) = ( 'empty ) .
+  eq ( [PX PY] [P] 'reduce ) = ( [PX] [P] 'reduce [PY] [P] 'reduce P ) .
+
+endm
+
+
+mod JOY_INLINE is
+
+  including JOY .
+
+  sort Def .
+
+  vars DEF DX DY D : Def .
+  vars E : Env .
+  vars P PX PY : Op .
+  vars QF QY : Qid .
+  vars L : Literal .
+  
+  op env : Def -> Env [ctor] .
+  op inline : Def Def -> Def .
+  op inlineOp : Op Def -> Op .
+  op def( _ , _ ) : Qid Op -> Def [ctor format(ni++ d d d d d --)] .
+  op empty : -> Def [ctor] .
+  op _ _ : Def Def -> Def [ctor comm assoc id: empty ] .
+
+  eq inline( empty, D ) = empty .
+  eq inline( ( def ( QF, P ) DX ) , DY ) = def ( QF, inlineOp ( P, DY ) ) inline ( DX, DY ) .
+
+  eq inlineOp( P, empty ) = P .
+  eq inlineOp( empty, D ) = empty .
+  eq  inlineOp( PX QF PY, (def(QF, P) D) ) =  inlineOp(PX, (def(QF, P) D)) inlineOp(P, def(QF , P) D) inlineOp(PY, (def(QF, P) D)).
+  ceq inlineOp( PX QF PY, (def(QY, P) D) ) =  inlineOp(PX, (def(QY, P) D)) inlineOp(QF , D)           inlineOp(PY, (def(QY, P) D)) if QY =/= QF .
+  eq inlineOp( L, D ) = L .
+
+  rl env(D) => env(inline(D, D)) .
+endm
+
+
+mod JOY_MIX is
+  including JOY .
+  including JOY_INLINE .
+
+  vars P PX PY : Op .
+  vars QF : Qid .
+  vars L : Literal .
+  vars N : Int .
+  vars B : Bool .
+
+  crl [mix-reduce-reduce] : [ PX ] 'reduce [ PY ] 'reduce => 
+                            [ [ PY ] 'reduce ] 'map [ [ PY ] 'inverse~ 'swp [ PY ] 'inverse~ 'swp PX [ PY ] 'reduce ] 'reduce  if
+                                 inverseEliminatable( [ PY ] 'inverse~ 'swp [ PY ] 'inverse~ 'swp PX [ PY ] 'reduce ) => empty .
+
+  crl [mix-reduce-map] : [ PX ] 'reduce [ PY ] 'map => [ [ PY ] 'map ] 'map [ [ PY ] 'inverse~ 'swp [ PY ] 'inverse~ 'swp PX [ PY ] 'map ] 'reduce  if
+                                                         inverseEliminatable( [ PY ] 'inverse~ 'swp [ PY ] 'inverse~ 'swp PX [ PY ] 'map ) => empty .
+
+  crl [mix-map-reduce] : [ PX ] 'map [ PY ] 'reduce => [ PX 'swp PX 'swp PY [ PX ] 'inverse~ ] 'reduce PX if 
+                                    inverseEliminatable( PX 'swp PX 'swp PY [ PX ] 'inverse~ ) => empty .
+
+  op inverseEliminatable : Op -> Op .
+  ceq inverseEliminatable( PX QF PY ) = inverseEliminatable(PX) inverseEliminatable(PY) if QF =/= 'inverse~ .
+  eq inverseEliminatable( PX [ P ] PY ) = inverseEliminatable(PX) inverseEliminatable(P) inverseEliminatable(PY) .
+  eq inverseEliminatable( PX < N > PY ) = ( inverseEliminatable(PX) inverseEliminatable(PY) ) .
+  eq inverseEliminatable( PX < B > PY ) = ( inverseEliminatable(PX) inverseEliminatable(PY) ) .
+  eq inverseEliminatable( empty ) = empty .
+
+  eq ( PX [PX] 'inverse~ ) = empty .
+  eq ( [PX] 'inverse~ [PX] 'reduce ) = empty .
+  eq ( [PX] 'inverse~ [PX] 'map ) = empty .
+
+endm
+
+
+frewrite [200] env(
+
+  --- local definitions
+
+  def('reverse, ( [ [] 'cons ] 'map [ 'swp 'concat ] 'reduce ))
+
+  --- optimization test cases:
+
+  def('optimizeRevIncr,  ( 'reverse [ < 1 > '+ ] 'map ))
+  --- rewritten: [< 1 > '+ [] 'cons] 'map ['swp 'concat] 'reduce
+
+  def('optimizeRevLen,   ( 'reverse [ '+ ] 'reduce ))
+  --- rewritten: ['+] 'reduce
+
+  def('optimizeIncrSum,  ( [ < 1 > '+ ] 'map [ '+ ] 'reduce ))
+  --- rewritten: 'dup ['+] 'reduce 'swp 'len '+
+  
+  def('optimizeRevRev, ( 'reverse 'reverse ))
+  --- rewritten: empty
+  
+  def('optimizeSortHd, ( 'sort 'hd ) )
+  --- rewritten: [ ['swp 'before] [] ['swp] 'ifte 'x] 'reduce
+
+) .
